@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" id="html-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Islam Kids</title>
+    <meta name="theme-color" content="#2EC4B6">
+    <style>
+        /* CSS Styles */
+        :root {
+            --primary: #2EC4B6;
+            --secondary: #FF9F1C;
+            --accent: #E71D36;
+            --bg: #FDFFFC;
+            --surface: #FFFFFF;
+            --text: #011627;
+            --radius: 16px;
+            --shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        [data-theme="dark"] {
+            --bg: #121212;
+            --surface: #1E1E1E;
+            --text: #F8F9FA;
+            --shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: var(--text); overflow-x: hidden; padding-bottom: 80px; transition: background 0.3s; }
+
+        #app { padding: 20px; max-width: 800px; margin: 0 auto; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Cards & Grid */
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 20px; }
+        .card { background: var(--surface); padding: 20px 10px; border-radius: var(--radius); text-align: center; box-shadow: var(--shadow); border-bottom: 4px solid var(--primary); cursor: pointer; transition: transform 0.2s; }
+        .card:active { transform: scale(0.95); }
+        .card h1 { font-size: 3rem; margin-bottom: 10px; }
+        .card h3 { font-size: 1.1rem; }
+
+        /* Forms & Buttons */
+        input, select { width: 100%; padding: 15px; margin-bottom: 15px; border: 2px solid #eee; border-radius: 12px; font-size: 1rem; background: var(--surface); color: var(--text); outline: none; transition: border 0.3s; }
+        input:focus { border-color: var(--primary); }
+        button { width: 100%; padding: 15px; border: none; border-radius: 12px; background: var(--primary); color: white; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-bottom: 10px; transition: transform 0.2s; box-shadow: 0 4px 0 #1ea396; }
+        button:active { transform: translateY(4px); box-shadow: 0 0 0 #1ea396; }
+        button.secondary { background: var(--secondary); box-shadow: 0 4px 0 #d48215; }
+        button.secondary:active { box-shadow: 0 0 0 #d48215; }
+
+        /* Bottom Nav */
+        #bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--surface); display: flex; justify-content: space-around; padding: 15px 0; box-shadow: 0 -5px 15px rgba(0,0,0,0.05); border-radius: 20px 20px 0 0; z-index: 100; }
+        #bottom-nav a { text-decoration: none; color: #999; display: flex; flex-direction: column; align-items: center; font-size: 0.8rem; font-weight: bold; transition: color 0.3s; }
+        #bottom-nav a.active { color: var(--primary); }
+        #bottom-nav a span.icon { font-size: 1.5rem; margin-bottom: 4px; }
+
+        /* Utilities */
+        .header-banner { background: linear-gradient(135deg, var(--primary), #1ea396); color: white; padding: 20px; border-radius: var(--radius); text-align: center; margin-bottom: 20px; box-shadow: var(--shadow); }
+        .stats-bar { display: flex; justify-content: space-around; background: var(--surface); padding: 15px; border-radius: var(--radius); margin-bottom: 20px; box-shadow: var(--shadow); font-weight: bold; }
+        .progress-bar { width: 100%; height: 12px; background: #eee; border-radius: 6px; overflow: hidden; margin: 10px 0; }
+        .progress-fill { height: 100%; background: var(--secondary); width: 0%; transition: width 0.5s ease-out; }
+        .audio-player { width: 100%; margin-top: 15px; border-radius: 12px; outline: none; }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 20px; font-size: 0.9rem; z-index: 1000; display: none; }
+    </style>
+</head>
+<body>
+    
+    <div id="toast" class="toast"></div>
+
+    <div id="app">
+        <!-- يتم عرض المحتوى هنا ديناميكياً -->
+    </div>
+    
+    <nav id="bottom-nav" style="display: none;">
+        <a href="#home" id="nav-home" class="active">
+            <span class="icon">🏠</span>
+            <span data-i18n="home">الرئيسية</span>
+        </a>
+        <a href="#quran" id="nav-quran">
+            <span class="icon">📖</span>
+            <span data-i18n="quran">القرآن</span>
+        </a>
+        <a href="#profile" id="nav-profile">
+            <span class="icon">👤</span>
+            <span data-i18n="profile">حسابي</span>
+        </a>
+        <a href="#settings" id="nav-settings">
+            <span class="icon">⚙️</span>
+            <span data-i18n="settings">الإعدادات</span>
+        </a>
+    </nav>
+
+    <script>
+        // === 1. Security (Web Crypto API) ===
+        class Security {
+            static async hashPassword(password) {
+                const msgBuffer = new TextEncoder().encode(password);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+            static sanitizeHTML(html) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                doc.querySelectorAll('script, iframe, object, embed').forEach(el => el.remove());
+                return doc.body.innerHTML;
+            }
+        }
+
+        // === 2. IndexedDB (Local Database) ===
+        class DB {
+            static dbName = 'IslamKidsApp';
+            static version = 1;
+            static db = null;
+
+            static async init() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, this.version);
+                    request.onerror = e => reject(e.target.error);
+                    request.onsuccess = e => { this.db = e.target.result; resolve(this.db); };
+                    request.onupgradeneeded = e => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('users')) {
+                            db.createObjectStore('users', { keyPath: 'email' });
+                        }
+                    };
+                });
+            }
+
+            static async get(storeName, key) {
+                return new Promise((resolve) => {
+                    const req = this.db.transaction(storeName, 'readonly').objectStore(storeName).get(key);
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => resolve(null);
+                });
+            }
+
+            static async put(storeName, data) {
+                return new Promise((resolve) => {
+                    const req = this.db.transaction(storeName, 'readwrite').objectStore(storeName).put(data);
+                    req.onsuccess = () => resolve(req.result);
+                });
+            }
+        }
+
+        // === 3. Authentication & Progress ===
+        class Auth {
+            static currentUser = null;
+
+            static async init() {
+                const storedEmail = localStorage.getItem('active_user');
+                if (storedEmail) this.currentUser = await DB.get('users', storedEmail);
+            }
+
+            static async register(name, email, password, role) {
+                if(!name || !email || !password) throw new Error("يرجى ملء جميع الحقول");
+                const existing = await DB.get('users', email);
+                if (existing) throw new Error("البريد الإلكتروني مستخدم مسبقاً");
+                
+                const hash = await Security.hashPassword(password);
+                const user = { name, email, passHash: hash, role, xp: 0, level: 1, coins: 0 };
+                await DB.put('users', user);
+                return this.login(email, password);
+            }
+
+            static async login(email, password) {
+                if(!email || !password) throw new Error("يرجى ملء جميع الحقول");
+                const user = await DB.get('users', email);
+                if (!user) throw new Error("الحساب غير موجود");
+                
+                const hash = await Security.hashPassword(password);
+                if (user.passHash !== hash) throw new Error("كلمة المرور غير صحيحة");
+                
+                this.currentUser = user;
+                localStorage.setItem('active_user', email);
+                return user;
+            }
+
+            static logout() {
+                this.currentUser = null;
+                localStorage.removeItem('active_user');
+                window.location.hash = 'login';
+            }
+
+            static async updateProgress(xpGain, coinsGain) {
+                if (!this.currentUser || this.currentUser.role === 'parent') return;
+                this.currentUser.xp += xpGain;
+                this.currentUser.coins += coinsGain;
+                
+                const oldLevel = this.currentUser.level;
+                this.currentUser.level = Math.floor(this.currentUser.xp / 100) + 1;
+                
+                if(this.currentUser.level > oldLevel) {
+                    showToast(`🎉 مبروك! وصلت للمستوى ${this.currentUser.level}`);
+                }
+                
+                await DB.put('users', this.currentUser);
+            }
+        }
+
+        // === 4. i18n System ===
+        const translations = {
+            ar: { home: "الرئيسية", quran: "القرآن", profile: "حسابي", settings: "الإعدادات", welcome: "أهلاً يا بطل", parent_dash: "لوحة تحكم الآباء", login: "تسجيل الدخول", register: "حساب جديد" },
+            en: { home: "Home", quran: "Quran", profile: "Profile", settings: "Settings", welcome: "Welcome Champ", parent_dash: "Parent Dashboard", login: "Login", register: "Register" }
+        };
+
+        let currentLang = localStorage.getItem('app_lang') || 'ar';
+
+        function applyTranslations() {
+            document.getElementById('html-root').dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[currentLang] && translations[currentLang][key]) {
+                    el.textContent = translations[currentLang][key];
+                }
+            });
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 3000);
+        }
+
+        // === 5. Views (Pages) ===
+        const Views = {
+            login: () => `
+                <div style="text-align: center; margin-top: 40px;">
+                    <h1 style="font-size: 5rem; animation: bounce 2s infinite;">🕌</h1>
+                    <h2 style="color: var(--primary-dark); font-size: 2rem; margin-bottom: 20px;">Islam Kids</h2>
+                    
+                    <div style="background: var(--surface); padding: 25px; border-radius: var(--radius); box-shadow: var(--shadow);">
+                        <input type="text" id="name" placeholder="الاسم (للتسجيل فقط)">
+                        <input type="email" id="email" placeholder="البريد الإلكتروني" required>
+                        <input type="password" id="password" placeholder="كلمة المرور" required>
+                        <select id="role">
+                            <option value="child">طفل (متعلم)</option>
+                            <option value="parent">أب / ولي أمر</option>
+                        </select>
+                        
+                        <button onclick="window.handleLogin()" style="margin-top: 10px;">تسجيل الدخول</button>
+                        <button onclick="window.handleRegister()" class="secondary">إنشاء حساب جديد</button>
+                        <p id="auth-error" style="color: var(--accent); margin-top: 10px; font-weight: bold;"></p>
+                    </div>
+                </div>
+            `,
+            home: () => {
+                const u = Auth.currentUser;
+                if (u.role === 'parent') return `
+                    <div class="header-banner">
+                        <h2 style="font-size: 1.8rem;">👨‍👩‍👧 <span data-i18n="parent_dash">لوحة تحكم الآباء</span></h2>
+                    </div>
+                    <div class="card">
+                        <h3>بيانات الحساب الأساسية</h3>
+                        <p style="color: var(--text-muted); margin-top: 10px;">${u.email}</p>
+                        <hr style="margin: 15px 0; border: 1px solid #eee;">
+                        <p>هنا ستظهر إحصائيات طفلك قريباً.</p>
+                    </div>
+                `;
+                return `
+                    <div class="header-banner">
+                        <h2 style="font-size: 1.8rem; margin-bottom: 5px;"><span data-i18n="welcome">أهلاً يا بطل</span>، ${u.name}! 👋</h2>
+                        <p style="opacity: 0.9;">ماذا تريد أن تتعلم اليوم؟</p>
+                    </div>
+                    
+                    <div class="stats-bar">
+                        <span>⭐ المستوى ${u.level}</span>
+                        <span>🏆 نقاط ${u.xp}</span>
+                        <span>🪙 عملات ${u.coins}</span>
+                    </div>
+
+                    <h3 style="margin-bottom: 10px;">أقسام التعلم</h3>
+                    <div class="grid">
+                        <div class="card" style="border-color: #2dd36f;" onclick="location.hash='quran'">
+                            <h1>📖</h1><h3>القرآن الكريم</h3>
+                        </div>
+                        <div class="card" style="border-color: #ffc409;" onclick="window.showQuiz()">
+                            <h1>❓</h1><h3>اختبر معلوماتك</h3>
+                        </div>
+                        <div class="card" style="border-color: var(--accent);" onclick="showToast('قريباً!')">
+                            <h1>🕌</h1><h3>التربية الإسلامية</h3>
+                        </div>
+                        <div class="card" style="border-color: #9b5de5;" onclick="showToast('قريباً!')">
+                            <h1>🐪</h1><h3>قصص الأنبياء</h3>
+                        </div>
+                    </div>
+                `;
+            },
+            quran: () => `
+                <div class="header-banner" style="background: linear-gradient(135deg, #2dd36f, #1ea396);">
+                    <h2 style="font-size: 1.8rem;">📖 القرآن الكريم</h2>
+                </div>
+                
+                <div class="card">
+                    <div style="font-size: 4rem; color: var(--primary);">🕋</div>
+                    <h3 style="font-size: 1.5rem; margin-bottom: 10px;">سورة الفاتحة</h3>
+                    <p style="color: var(--text-muted);">مكية • 7 آيات</p>
+                    <audio controls class="audio-player" onplay="window.awardListeningXP()" onended="showToast('اكتمل الاستماع! حصلت على نقاط إضافية')">
+                        <source src="https://cdn.islamic.network/quran/audio/128/ar.alafasy/1.mp3" type="audio/mpeg">
+                    </audio>
+                    <p style="font-size: 0.85rem; color: var(--secondary); margin-top: 15px; font-weight: bold;">(استمع للقرآن لتحصل على النقاط!)</p>
+                </div>
+            `,
+            quiz: () => `
+                <div class="header-banner" style="background: linear-gradient(135deg, #ffc409, #d48215);">
+                    <h2 style="font-size: 1.8rem;">❓ تحدي الأبطال</h2>
+                </div>
+                <div class="card" id="quiz-container">
+                    <h3 style="font-size: 1.3rem; margin-bottom: 20px;">كم عدد الصلوات المفروضة في اليوم؟</h3>
+                    <button onclick="window.checkAnswer(true, this)" style="background: white; color: var(--text); border: 2px solid #eee; box-shadow: none;">5 صلوات</button>
+                    <button onclick="window.checkAnswer(false, this)" style="background: white; color: var(--text); border: 2px solid #eee; box-shadow: none;">3 صلوات</button>
+                    <button onclick="window.checkAnswer(false, this)" style="background: white; color: var(--text); border: 2px solid #eee; box-shadow: none;">صلاة واحدة</button>
+                </div>
+            `,
+            profile: () => `
+                <div style="text-align: center; margin-top: 20px;">
+                    <div style="font-size: 5rem; background: var(--surface); width: 120px; height: 120px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; box-shadow: var(--shadow);">
+                        ${Auth.currentUser.role === 'parent' ? '👨‍👩‍👧' : '🦸‍♂️'}
+                    </div>
+                    <h2 style="font-size: 1.8rem; margin-bottom: 5px;">${Auth.currentUser.name}</h2>
+                    <p style="color: var(--text-muted); margin-bottom: 25px;">${Auth.currentUser.email}</p>
+                    
+                    ${Auth.currentUser.role === 'child' ? `
+                    <div class="card" style="text-align: right;">
+                        <h3>تقدم المستوى</h3>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${(Auth.currentUser.xp % 100)}%;"></div>
+                        </div>
+                        <p style="font-size: 0.9rem; color: var(--text-muted);">باقي ${100 - (Auth.currentUser.xp % 100)} نقطة للمستوى التالي</p>
+                    </div>
+                    ` : ''}
+
+                    <button class="secondary" onclick="window.Auth.logout()" style="margin-top: 30px;">تسجيل الخروج</button>
+                </div>
+            `,
+            settings: () => `
+                <div class="header-banner" style="background: linear-gradient(135deg, #70798c, #333);">
+                    <h2 style="font-size: 1.8rem;">⚙️ الإعدادات</h2>
+                </div>
+                <div class="card" style="text-align: right;">
+                    <label style="font-weight: bold; display: block; margin-bottom: 10px;">🌐 لغة التطبيق</label>
+                    <select onchange="window.changeLang(this.value)">
+                        <option value="ar" ${currentLang === 'ar' ? 'selected' : ''}>العربية (Arabic)</option>
+                        <option value="en" ${currentLang === 'en' ? 'selected' : ''}>English</option>
+                    </select>
+                    
+                    <label style="font-weight: bold; display: block; margin-bottom: 10px; margin-top: 20px;">🎨 مظهر التطبيق</label>
+                    <select onchange="window.changeTheme(this.value)">
+                        <option value="light" ${localStorage.getItem('theme') !== 'dark' ? 'selected' : ''}>فاتح ومبهج (افتراضي)</option>
+                        <option value="dark" ${localStorage.getItem('theme') === 'dark' ? 'selected' : ''}>داكن (ليلي)</option>
+                    </select>
+                </div>
+            `
+        };
+
+        // === 6. App Router ===
+        class Router {
+            static init() {
+                window.addEventListener('hashchange', () => this.handleRoute());
+                this.handleRoute();
+            }
+
+            static handleRoute() {
+                const hash = window.location.hash.replace('#', '') || 'home';
+                const appDiv = document.getElementById('app');
+                const nav = document.getElementById('bottom-nav');
+
+                // Route Guards
+                if (!Auth.currentUser && hash !== 'login') {
+                    window.location.hash = 'login';
+                    return;
+                }
+
+                nav.style.display = Auth.currentUser ? 'flex' : 'none';
+                
+                // Update Nav Active State
+                document.querySelectorAll('#bottom-nav a').forEach(a => a.classList.remove('active'));
+                const activeNav = document.getElementById(`nav-${hash}`);
+                if(activeNav) activeNav.classList.add('active');
+
+                // Render View
+                const viewContent = Views[hash] ? Views[hash]() : Views['home']();
+                appDiv.innerHTML = Security.sanitizeHTML(viewContent);
+                applyTranslations();
+                window.scrollTo(0, 0);
+            }
+        }
+
+        // === 7. Global Handlers (For Inline HTML) ===
+        window.Auth = Auth;
+        
+        window.handleLogin = async () => {
+            const e = document.getElementById('email').value, p = document.getElementById('password').value;
+            try { await Auth.login(e, p); window.location.hash = 'home'; } 
+            catch(err) { document.getElementById('auth-error').textContent = err.message; }
+        };
+        
+        window.handleRegister = async () => {
+            const n = document.getElementById('name').value, e = document.getElementById('email').value;
+            const p = document.getElementById('password').value, r = document.getElementById('role').value;
+            try { await Auth.register(n, e, p, r); window.location.hash = 'home'; } 
+            catch(err) { document.getElementById('auth-error').textContent = err.message; }
+        };
+
+        window.changeLang = (val) => { localStorage.setItem('app_lang', val); currentLang = val; applyTranslations(); Router.handleRoute(); };
+        window.changeTheme = (val) => { localStorage.setItem('theme', val); document.documentElement.setAttribute('data-theme', val); };
+        
+        // Game & Media Handlers
+        let audioAwarded = false;
+        window.awardListeningXP = async () => {
+            if(!audioAwarded && Auth.currentUser.role === 'child') {
+                audioAwarded = true;
+                await Auth.updateProgress(10, 5);
+                showToast("جاري الاستماع... +10 نقاط 🏆");
+            }
+        };
+
+        window.showQuiz = () => { window.location.hash = 'quiz'; };
+        
+        window.checkAnswer = async (isCorrect, btn) => {
+            if(isCorrect) { 
+                btn.style.borderColor = 'var(--primary)'; btn.style.background = '#e6ffed';
+                showToast("إجابة صحيحة! +20 نقطة 🏆"); 
+                await Auth.updateProgress(20, 10); 
+                setTimeout(() => window.location.hash = 'home', 1500);
+            } else { 
+                btn.style.borderColor = 'var(--accent)'; btn.style.background = '#ffeef0';
+                showToast("حاول مرة أخرى يا بطل!"); 
+            }
+        };
+
+        // === 8. Bootstrapping App ===
+        window.addEventListener('load', async () => {
+            if (localStorage.getItem('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+            try {
+                await DB.init();
+                await Auth.init();
+                Router.init();
+            } catch (error) {
+                console.error("App Init Error:", error);
+                document.getElementById('app').innerHTML = `<h3 style="text-align:center; margin-top:50px;">حدث خطأ في تشغيل التطبيق. تأكد من أن متصفحك يدعم IndexedDB.</h3>`;
+            }
+        });
+    </script>
+</body>
+</html>
